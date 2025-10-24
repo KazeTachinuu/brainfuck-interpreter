@@ -26,6 +26,17 @@ void displaySeeHelp() {
   printf("Try 'bf --help' for more information.\n");
 }
 
+void handle_comma() {
+    if ((c = getchar()) != EOF) {
+        array[memp] = c == '\n' ? 10 : c;
+    }
+}
+
+void handle_dot() {
+    putchar(array[memp] == 10 ? '\n' : array[memp]);
+    fflush(stdout);
+}
+
 
 int interpretBrainfuck(char *code) {
     for (size_t codep = 0; codep < strlen(code); codep++) {
@@ -53,8 +64,8 @@ int interpretBrainfuck(char *code) {
             case '-': array[memp]--; break;
             case '<': memp--; break;
             case '>': memp++; break;
-            case ',': if ((c = getchar()) != EOF) array[memp] = c == '\n' ? 10 : c; break;
-            case '.': putchar(array[memp] == 10 ? '\n' : array[memp]); fflush(stdout); break;
+            case ',': handle_comma(); break;
+            case '.': handle_dot(); break;
             case '[': if (!array[memp]) codep = targets[codep]; break;
             case ']': if (array[memp]) codep = targets[codep]; break;
         }
