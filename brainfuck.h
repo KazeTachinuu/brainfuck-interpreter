@@ -14,7 +14,7 @@ typedef struct {
     int stackp;
     char code[MAXCODESIZE];
     int codelength;
-    short int array[ARRAYSIZE];
+    short int *array;  // Dynamic allocation
     int memp;
     int targets[MAXCODESIZE];
     int c;
@@ -31,5 +31,6 @@ void brainfuck_reset(brainfuck_state_t *state);
 const char* brainfuck_get_output(brainfuck_state_t *state);
 int brainfuck_get_memory_value(brainfuck_state_t *state, int position);
 int brainfuck_get_memory_pointer(brainfuck_state_t *state);
+void brainfuck_cleanup(brainfuck_state_t *state);
 
 #endif // BRAINFUCK_H

@@ -9,7 +9,14 @@ void brainfuck_init(brainfuck_state_t *state) {
     state->stackp = 0;
     memset(state->code, 0, sizeof(state->code));
     state->codelength = 0;
-    memset(state->array, 0, sizeof(state->array));
+    
+    // Allocate memory for array
+    state->array = calloc(ARRAYSIZE, sizeof(short int));
+    if (state->array == NULL) {
+        fprintf(stderr, "Failed to allocate memory for array\n");
+        exit(1);
+    }
+    
     state->memp = 0;
     memset(state->targets, 0, sizeof(state->targets));
     state->c = 0;
@@ -138,10 +145,20 @@ int brainfuck_interpret_with_input(brainfuck_state_t *state, const char *code, c
 void brainfuck_reset(brainfuck_state_t *state) {
     memset(state->stack, 0, sizeof(state->stack));
     state->stackp = 0;
-    memset(state->array, 0, sizeof(state->array));
+    if (state->array != NULL) {
+        memset(state->array, 0, ARRAYSIZE * sizeof(short int));
+    }
     state->memp = 0;
     memset(state->targets, 0, sizeof(state->targets));
     state->c = 0;
+}
+
+// Add cleanup function
+void brainfuck_cleanup(brainfuck_state_t *state) {
+    if (state->array != NULL) {
+        free(state->array);
+        state->array = NULL;
+    }
 }
 
 // Helper functions for testing
