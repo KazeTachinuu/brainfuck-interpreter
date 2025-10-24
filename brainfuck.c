@@ -1,19 +1,10 @@
+#include "brainfuck.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define ARRAYSIZE 16777216
-#define MAXCODESIZE 65536
-
-int stack[MAXCODESIZE], stackp;
-char code[MAXCODESIZE];
-int codelength;
-short int array[ARRAYSIZE], memp;
-int targets[MAXCODESIZE];
-int c;
-FILE *prog;
-
+// Original main function for backward compatibility
 void displayHelp() {
     printf("Brainfuck Interpreter\n");
     printf("Usage: bf [-c code | filename]\n");
@@ -23,43 +14,7 @@ void displayHelp() {
 }
 
 void displaySeeHelp() {
-  printf("Try 'bf --help' for more information.\n");
-}
-
-
-int interpretBrainfuck(char *code) {
-    for (size_t codep = 0; codep < strlen(code); codep++) {
-        if (code[codep] == '[')
-            stack[stackp++] = codep;
-        if (code[codep] == ']') {
-            if (stackp == 0) {
-                fprintf(stderr, "Unmatched ']' at byte %ld.", codep);
-                exit(1);
-            } else {
-                --stackp;
-                targets[codep] = stack[stackp];
-                targets[stack[stackp]] = codep;
-            }
-        }
-    }
-    if (stackp > 0) {
-        fprintf(stderr, "Unmatched '[' at byte %d.", stack[--stackp]);
-        exit(1);
-    }
-
-    for (size_t codep = 0; codep < strlen(code); codep++) {
-        switch (code[codep]) {
-            case '+': array[memp]++; break;
-            case '-': array[memp]--; break;
-            case '<': memp--; break;
-            case '>': memp++; break;
-            case ',': if ((c = getchar()) != EOF) array[memp] = c == '\n' ? 10 : c; break;
-            case '.': putchar(array[memp] == 10 ? '\n' : array[memp]); fflush(stdout); break;
-            case '[': if (!array[memp]) codep = targets[codep]; break;
-            case ']': if (array[memp]) codep = targets[codep]; break;
-        }
-    }
-    return 0;
+    printf("Try 'bf --help' for more information.\n");
 }
 
 int main(int argc, char **argv) {
@@ -68,7 +23,6 @@ int main(int argc, char **argv) {
         displaySeeHelp();
         exit(1);
     }
-  
 
     char *option = argv[1];
 
@@ -83,19 +37,23 @@ int main(int argc, char **argv) {
     }
 
     char *input;
+    brainfuck_state_t state;
+    brainfuck_init(&state);
+    
     if (argc == 3 && strcmp(option, "-c") == 0) {
         // Run Brainfuck code directly from the command line
         input = argv[2];
-        codelength = strlen(input);
-        strcpy(code, input);
+        state.codelength = strlen(input);
+        strcpy(state.code, input);
     } else if (argc == 2) {
         // Default behavior: interpret Brainfuck code from the provided file
         input = argv[1];
+        FILE *prog;
         if (!(prog = fopen(input, "r"))) {
             fprintf(stderr, "Can't open the file %s.\n", input);
             exit(1);
         }
-        codelength = fread(code, 1, MAXCODESIZE, prog);
+        state.codelength = fread(state.code, 1, MAXCODESIZE, prog);
         fclose(prog);
     } else {
         fprintf(stderr, "bf: Invalid arguments.\n");
@@ -103,8 +61,6 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    interpretBrainfuck(code);
-
-    return 0;
+    int result = brainfuck_interpret(&state, state.code);
+    return result;
 }
-
