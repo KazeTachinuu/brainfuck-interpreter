@@ -39,6 +39,50 @@ make
 ```
 This will generate the executable named `bf`.
 
+## Testing
+
+This project includes a comprehensive test suite using the Criterion testing framework. The test suite covers:
+
+- **Unit Tests**: Individual Brainfuck operations (increment, decrement, pointer movement, loops)
+- **Integration Tests**: Full program execution using example Brainfuck programs
+- **Error Handling Tests**: Edge cases, invalid input, and boundary conditions
+- **Memory Management Tests**: Memory boundary protection and overflow handling
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run tests with verbose output
+make test-verbose
+
+# Run tests with coverage analysis
+make test-coverage
+
+# Or use the test runner script
+./run_tests.sh
+
+# Run only fast tests (skip integration tests)
+./run_tests.sh --fast
+
+# Run tests with coverage analysis
+./run_tests.sh --coverage
+```
+
+### Test Structure
+
+- `tests/test_brainfuck.c` - Unit tests for core Brainfuck operations
+- `tests/test_integration.c` - Integration tests using example programs
+- `tests/test_error_handling.c` - Error handling and edge case tests
+
+The test suite ensures the interpreter correctly handles:
+- All 8 Brainfuck commands (`+`, `-`, `<`, `>`, `[`, `]`, `.`, `,`)
+- Nested loops and complex program structures
+- Memory boundary conditions
+- Input/output operations
+- Error conditions and malformed programs
+
 ## Adding the Executable to PATH 
 
 To use the Brainfuck interpreter globally and access it from anywhere, you can add the executable to your system's PATH.
