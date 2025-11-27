@@ -1,110 +1,121 @@
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define ARRAYSIZE 16777216
-#define MAXCODESIZE 65536
+#define MEM_SIZE 30000
+#define MAX_DEPTH 4096
 
-int stack[MAXCODESIZE], stackp;
-char code[MAXCODESIZE];
-int codelength;
-short int array[ARRAYSIZE], memp;
-int targets[MAXCODESIZE];
-int c;
-FILE *prog;
+static char *read_file(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return NULL;
 
-void displayHelp() {
-    printf("Brainfuck Interpreter\n");
-    printf("Usage: bf [-c code | filename]\n");
-    printf("Options:\n");
-    printf("  -c <code>     Run Brainfuck code directly from the command line\n");
-    printf("  -h, --help    Display this help message\n");
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    rewind(f);
+
+    if (n < 0) {
+        fclose(f);
+        return NULL;
+    }
+
+    char *s = malloc((size_t)n + 1);
+    if (!s) {
+        fclose(f);
+        return NULL;
+    }
+    size_t bytes_read = fread(s, 1, (size_t)n, f);
+    int read_error = ferror(f);
+    fclose(f);
+    if (read_error) {
+        free(s);
+        return NULL;
+    }
+    s[bytes_read] = '\0';
+    return s;
 }
 
-void displaySeeHelp() {
-  printf("Try 'bf --help' for more information.\n");
-}
+static int build_jumps(const char *code, size_t *jump, size_t len)
+{
+    size_t stack[MAX_DEPTH], depth = 0;
 
-
-int interpretBrainfuck(char *code) {
-    for (size_t codep = 0; codep < strlen(code); codep++) {
-        if (code[codep] == '[')
-            stack[stackp++] = codep;
-        if (code[codep] == ']') {
-            if (stackp == 0) {
-                fprintf(stderr, "Unmatched ']' at byte %ld.", codep);
-                exit(1);
-            } else {
-                --stackp;
-                targets[codep] = stack[stackp];
-                targets[stack[stackp]] = codep;
+    for (size_t i = 0; i < len; i++) {
+        if (code[i] == '[') {
+            if (depth >= MAX_DEPTH)
+                return -1;
+            stack[depth++] = i;
+        } else if (code[i] == ']') {
+            if (!depth) {
+                fprintf(stderr, "Error: Unmatched ']'\n");
+                return -1;
             }
+            size_t j = stack[--depth];
+            jump[j] = i;
+            jump[i] = j;
         }
     }
-    if (stackp > 0) {
-        fprintf(stderr, "Unmatched '[' at byte %d.", stack[--stackp]);
-        exit(1);
-    }
-
-    for (size_t codep = 0; codep < strlen(code); codep++) {
-        switch (code[codep]) {
-            case '+': array[memp]++; break;
-            case '-': array[memp]--; break;
-            case '<': memp--; break;
-            case '>': memp++; break;
-            case ',': if ((c = getchar()) != EOF) array[memp] = c == '\n' ? 10 : c; break;
-            case '.': putchar(array[memp] == 10 ? '\n' : array[memp]); fflush(stdout); break;
-            case '[': if (!array[memp]) codep = targets[codep]; break;
-            case ']': if (array[memp]) codep = targets[codep]; break;
-        }
+    if (depth) {
+        fprintf(stderr, "Error: Unmatched '['\n");
+        return -1;
     }
     return 0;
 }
 
-int main(int argc, char **argv) {
-    if (argc == 1) {
-        fprintf(stderr, "bf: No arguments provided.\n");
-        displaySeeHelp();
-        exit(1);
-    }
-  
+static int run(const char *code)
+{
+    size_t len = strlen(code);
+    unsigned char *mem = calloc(MEM_SIZE, 1);
+    size_t *jump = calloc(len, sizeof *jump);
+    int rc = -1;
 
-    char *option = argv[1];
+    if (!mem || !jump || build_jumps(code, jump, len) < 0)
+        goto out;
 
-    if (argc == 2 && strcmp(option, "-c") == 0) {
-        fprintf(stderr, "bf: Missing code\n");
-        displaySeeHelp();
-        exit(1);
-    }
-    if (strcmp(option, "-h") == 0 || strcmp(option, "--help") == 0){
-        displayHelp();
-        exit(0);
-    }
-
-    char *input;
-    if (argc == 3 && strcmp(option, "-c") == 0) {
-        // Run Brainfuck code directly from the command line
-        input = argv[2];
-        codelength = strlen(input);
-        strcpy(code, input);
-    } else if (argc == 2) {
-        // Default behavior: interpret Brainfuck code from the provided file
-        input = argv[1];
-        if (!(prog = fopen(input, "r"))) {
-            fprintf(stderr, "Can't open the file %s.\n", input);
-            exit(1);
+    for (size_t i = 0, p = 0; i < len; i++) {
+        switch (code[i]) {
+        case '>': p = (p + 1) % MEM_SIZE; break;
+        case '<': p = (p + MEM_SIZE - 1) % MEM_SIZE; break;
+        case '+': mem[p]++; break;
+        case '-': mem[p]--; break;
+        case '.': putchar(mem[p]); break;
+        case ',': { int c = getchar(); if (c != EOF) mem[p] = (unsigned char)c; } break;
+        case '[': if (!mem[p]) i = jump[i]; break;
+        case ']': if (mem[p]) i = jump[i]; break;
         }
-        codelength = fread(code, 1, MAXCODESIZE, prog);
-        fclose(prog);
+    }
+    rc = 0;
+out:
+    free(mem);
+    free(jump);
+    return rc;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc < 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        printf("Usage: bf [-c code | file]\n");
+        return argc < 2;
+    }
+
+    char *code = NULL;
+
+    if (!strcmp(argv[1], "-c")) {
+        if (argc > 2) {
+            code = malloc(strlen(argv[2]) + 1);
+            if (code)
+                strcpy(code, argv[2]);
+        }
     } else {
-        fprintf(stderr, "bf: Invalid arguments.\n");
-        displaySeeHelp();
-        exit(1);
+        code = read_file(argv[1]);
     }
 
-    interpretBrainfuck(code);
+    if (!code) {
+        fprintf(stderr, "Error: Cannot load program\n");
+        return 1;
+    }
 
-    return 0;
+    int rc = run(code);
+    free(code);
+    return rc ? 1 : 0;
 }
-

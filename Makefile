@@ -8,8 +8,11 @@ all: $(EXE)
 $(EXE): $(SRC)
 	$(CC) $(CFLAGS) -o $(EXE) $(SRC)
 
-.PHONY: clean
+.PHONY: clean test
 
 clean:
 	rm -f $(EXE)
+
+test: $(EXE)
+	./test.sh ./$(EXE)
 
